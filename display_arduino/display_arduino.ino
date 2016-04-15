@@ -1,5 +1,8 @@
 #include <EEPROM.h>
 
+#define INIT 0
+#define RUN 1
+
 int addr_ligne_h = 0;
 int addr_ligne_l = 1;
 int addr_station_h = 2;
@@ -7,38 +10,50 @@ int addr_station_l = 3;
 int addr_destination_h = 4;
 int addr_destination_l = 5;
 
-int myligne = 0;
-int mystation = 0;
-int mydestination = 0;
+int Ligne = 0;
+int Station = 0;
+int Destination = 0;
+String NomduReseauWifi = "Bbox-SandyEtMat";
+String MotDePasse = "576CC166AEC4AF5CA513334FEF7DD2";
+
+short state = RUN;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  Serial.print("INIT");
-  int count = 10;
-  while(count > 0){
-    if(Serial.available() > 0){
-      if(Serial.find("HELLO FROM ARDUINO")) break;
-    }
-    count--;
-    delay(200);
-  }
-
-  if(count > 0){ // Start init
-    Serial.print("ACK");
-    myligne = readSerial(1000).toInt();
-    Serial.print("ACK");
-    mystation = readSerial(1000).toInt();
-    Serial.print("ACK");
-    mydestination = readSerial(1000).toInt();
-    writeToEEPROM(myligne, mystation, mydestination);
-  }
-  else // Get from EEPROM
-    readFromEEPROM(&myligne, &mystation, &mydestination);  
+  // Read information from EEPROM
+  readFromEEPROM(&Ligne, &Station, &Destination);  
 }
 
 void loop() {
+  switch(state){
+    case(INIT) :
+      Serial.print("READY");
+      Ligne = readSerial(1000).toInt();
+      Serial.print("ACK");
+      Station = readSerial(1000).toInt();
+      Serial.print("ACK");
+      Destination = readSerial(1000).toInt();
+      Serial.print("ACK");
+      writeToEEPROM(Ligne, Station, Destination);
+      break;
+    case(RUN) :
+      
+  // Stuffs to do (Requests, Display)
+
+      state = waitForInitRequest(1000);
+      break;
+  }
 }
+
+short waitForInitRequest(const int timeout){
+  String request = readSerial(timeout);
+  if(request.indexOf("HELLO FROM ARDUINO") != -1){
+    return INIT;
+  }
+  else return RUN;
+}
+
 
 String readSerial(const int timeout){
   String reponse = "";
