@@ -23,7 +23,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   // Read information from EEPROM
-  readFromEEPROM(&Ligne, &Station, &Destination);  
+  readBusFromEEPROM(&Ligne, &Station, &Destination);  
 }
 
 void loop() {
@@ -36,7 +36,7 @@ void loop() {
       Serial.print("ACK");
       Destination = readSerial(2000).toInt();
       Serial.print("ACK");
-      writeToEEPROM(Ligne, Station, Destination);
+      writeBusToEEPROM(Ligne, Station, Destination);
       state = RUN;
       break;
 
@@ -76,7 +76,7 @@ String readSerial(const int timeout){
   return reponse;
 }
 
-void writeToEEPROM(int ligne, int station, int destination){
+void writeBusToEEPROM(int ligne, int station, int destination){
   EEPROM.write(addr_ligne_h, (ligne >> 8) & 0xFF);
   EEPROM.write(addr_ligne_l, (ligne >> 0) & 0xFF);
   EEPROM.write(addr_station_h, (station >> 8) & 0xFF);
@@ -85,7 +85,7 @@ void writeToEEPROM(int ligne, int station, int destination){
   EEPROM.write(addr_destination_l, (destination >> 0) & 0xFF);
 }
 
-void readFromEEPROM(int* ligne, int* station, int* destination){
+void readBusFromEEPROM(int* ligne, int* station, int* destination){
   *ligne = ((EEPROM.read(addr_ligne_h) << 8) & 0xFF00) + ((EEPROM.read(addr_ligne_l) << 0) & 0xFF);
   *station = ((EEPROM.read(addr_station_h) << 8) & 0xFF00) + ((EEPROM.read(addr_station_l) << 0) & 0xFF);
   *destination = ((EEPROM.read(addr_destination_h) << 8) & 0xFF00) + ((EEPROM.read(addr_destination_l) << 0) & 0xFF);
