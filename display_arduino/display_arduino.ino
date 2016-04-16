@@ -1,7 +1,8 @@
 #include <EEPROM.h>
 
-#define INIT 0
-#define RUN 1
+#define INIT_WIFI 0
+#define INIT_BUS 1
+#define RUN 2
 
 int addr_ligne_h = 0;
 int addr_ligne_l = 1;
@@ -27,33 +28,39 @@ void setup() {
 
 void loop() {
   switch(state){
-    case(INIT) :
+    case(INIT_BUS) :
       Serial.print("READY");
-      Ligne = readSerial(1000).toInt();
+      Ligne = readSerial(2000).toInt();
       Serial.print("ACK");
-      Station = readSerial(1000).toInt();
+      Station = readSerial(2000).toInt();
       Serial.print("ACK");
-      Destination = readSerial(1000).toInt();
+      Destination = readSerial(2000).toInt();
       Serial.print("ACK");
       writeToEEPROM(Ligne, Station, Destination);
+      state = RUN;
       break;
-    case(RUN) :
-      
-  // Stuffs to do (Requests, Display)
 
+    case(RUN) :
+  // Stuffs to do (Requests, Display)
+      Serial.println(Ligne);
+      Serial.println(Station);
+      Serial.println(Destination);
       state = waitForInitRequest(1000);
       break;
   }
 }
 
 short waitForInitRequest(const int timeout){
+  Serial.print("INIT ?");
   String request = readSerial(timeout);
-  if(request.indexOf("HELLO FROM ARDUINO") != -1){
-    return INIT;
+  if(request.indexOf("INIT BUS") != -1){
+    return INIT_BUS;
+  }
+  if(request.indexOf("INIT WIFI") != -1){
+    return INIT_WIFI;
   }
   else return RUN;
 }
-
 
 String readSerial(const int timeout){
   String reponse = "";
