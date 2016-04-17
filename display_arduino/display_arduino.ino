@@ -1,10 +1,13 @@
 #include <EEPROM.h>
 #include <SoftwareSerial.h>
+#include <ArduinoJson.h>
 
-#define API_RATP "api-ratp.pierre-grimaud.fr/v2"
+#define API_RATP "api-ratp.pierre-grimaud.fr"
 #define INIT_WIFI 0
 #define INIT_BUS 1
 #define RUN 2
+
+const size_t MAX_CONTENT_SIZE = 512;
 
 int addr_ligne_h = 0;
 int addr_ligne_l = 1;
@@ -57,6 +60,8 @@ void loop() {
       Serial.println(Ligne);
       Serial.println(Station);
       Serial.println(Destination);
+      updateBusSchedule();
+      delay(15000);
       state = waitForInitRequest(1000);
       break;
   }
@@ -87,6 +92,41 @@ String readSerial(const int timeout){
   }
   return reponse;
 }
+
+short updateBusSchedule(void){
+  String cmd = "AT+CIPSTART=\"TCP\",\"";
+  cmd += API_RATP;
+  cmd += "\",80";
+  sendDebug(cmd);
+  delay(2000);
+  if(ESP8266.find("Error")){
+    Serial.print("RECEIVED: Error");
+    return 0;
+  }
+
+  cmd = "GET http://api-ratp.pierre-grimaud.fr/v2/bus/"+String(Ligne)+"/stations/"+String(Station)+"?destination="+String(Destination);
+  cmd += "\r\n";
+  ESP8266.print("AT+CIPSEND=");
+  ESP8266.println(cmd.length());
+  if(ESP8266.find(">")){
+    Serial.print(">");
+    Serial.print(cmd);
+    ESP8266.print(cmd);
+  }else{
+    sendDebug("AT+CIPCLOSE");
+    return 0;
+  }
+  
+  char content[MAX_CONTENT_SIZE];
+  size_t length = ESP8266.readBytes(content, MAX_CONTENT_SIZE);
+  content[MAX_CONTENT_SIZE] = 0;
+  Serial.println(content);
+  
+  // Close session
+  sendDebug("AT+CIPCLOSE");
+  return 1;
+}
+
 
 void writeBusToEEPROM(int ligne, int station, int destination){
   EEPROM.write(addr_ligne_h, (ligne >> 8) & 0xFF);
