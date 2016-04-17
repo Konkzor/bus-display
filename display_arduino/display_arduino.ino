@@ -1,5 +1,7 @@
 #include <EEPROM.h>
+#include <SoftwareSerial.h>
 
+#define API_RATP "api-ratp.pierre-grimaud.fr/v2"
 #define INIT_WIFI 0
 #define INIT_BUS 1
 #define RUN 2
@@ -18,12 +20,22 @@ String NomduReseauWifi = "Bbox-SandyEtMat";
 String MotDePasse = "576CC166AEC4AF5CA513334FEF7DD2";
 
 short state = RUN;
+short wifiState = 0;
+
+SoftwareSerial ESP8266(10, 11);
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   // Read information from EEPROM
-  readBusFromEEPROM(&Ligne, &Station, &Destination);  
+  readBusFromEEPROM(&Ligne, &Station, &Destination);
+  // Wifi setup
+  ESP8266.begin(115200);
+  envoieAuESP8266("AT+CIOBAUD=9600");
+  recoitDuESP8266(4000);
+  ESP8266.begin(9600);
+  // Connection
+  wifiState = connect2Wifi();
 }
 
 void loop() {
@@ -91,3 +103,52 @@ void readBusFromEEPROM(int* ligne, int* station, int* destination){
   *destination = ((EEPROM.read(addr_destination_h) << 8) & 0xFF00) + ((EEPROM.read(addr_destination_l) << 0) & 0xFF);
 }
 
+/******************************************************************************
+ *                              WIFI FUNCTIONS                                *
+ ******************************************************************************/
+short connect2Wifi(void){
+  envoieAuESP8266("AT");//+RST"); // WORKING ?
+  Serial.print(recoitDuESP8266(2000));
+  envoieAuESP8266("AT+CWMODE=1"); // WIFI MODE STATION
+  Serial.print(recoitDuESP8266(7000));
+  envoieAuESP8266("AT+CWJAP=\"" + NomduReseauWifi + "\",\"" + MotDePasse + "\""); // JOIN ACCESS POINT
+  String res = recoitDuESP8266(5000);
+  Serial.print(res);
+  if (res.indexOf("WIFI GOT IP") != -1) return 1;
+  else return 0;
+}
+
+short checkWiFi(void){
+  envoieAuESP8266("AT+CIFSR");
+  delay(2000);
+  if(ESP8266.find("OK")){
+    return 1;
+  }
+  else{
+    return 0;
+  }
+}
+
+void envoieAuESP8266(String commande){
+  ESP8266.println(commande);
+}
+
+String recoitDuESP8266(const int timeout){
+  String reponse = "res : ";
+  long int time = millis();
+  while ( (time + timeout) > millis())
+  {
+    while (ESP8266.available())
+    {
+      char c = ESP8266.read();
+      reponse += c;
+    }
+  }
+  return reponse;
+}
+
+void sendDebug(String cmd){
+  Serial.print("SEND: ");
+  Serial.println(cmd);
+  ESP8266.println(cmd);
+}
