@@ -7,23 +7,31 @@
 #define INIT_BUS 1
 #define RUN 2
 
-const size_t MAX_CONTENT_SIZE = 512;
+struct BusData {
+  String station_name;
+  String destination_name;
+  String firstBus_time;
+  String secondBus_time;
+};
 
-int addr_ligne_h = 0;
-int addr_ligne_l = 1;
-int addr_station_h = 2;
-int addr_station_l = 3;
-int addr_destination_h = 4;
-int addr_destination_l = 5;
+size_t MAX_CONTENT_SIZE = 270;
+
+const char addr_ligne_h = 0;
+const char addr_ligne_l = 1;
+const char addr_station_h = 2;
+const char addr_station_l = 3;
+const char addr_destination_h = 4;
+const char addr_destination_l = 5;
+
+const String NomduReseauWifi = "Bbox-SandyEtMat";
+const String MotDePasse = "576CC166AEC4AF5CA513334FEF7DD2";
 
 int Ligne = 0;
 int Station = 0;
 int Destination = 0;
-String NomduReseauWifi = "Bbox-SandyEtMat";
-String MotDePasse = "576CC166AEC4AF5CA513334FEF7DD2";
 
-short state = RUN;
-short wifiState = 0;
+char state = RUN;
+char wifiState = 0;
 
 SoftwareSerial ESP8266(10, 11);
 
@@ -56,12 +64,17 @@ void loop() {
       break;
 
     case(RUN) :
-  // Stuffs to do (Requests, Display)
-      Serial.println(Ligne);
-      Serial.println(Station);
-      Serial.println(Destination);
-      updateBusSchedule();
-      delay(15000);
+    // Get bus data (first and second bus, destination)
+      BusData busdata;
+      updateBusSchedule(&busdata);
+      Serial.println(busdata.destination_name);
+      Serial.println(busdata.firstBus_time);
+      Serial.println(busdata.secondBus_time);
+      
+    // Display on LCD
+
+
+      delay(10000);
       state = waitForInitRequest(1000);
       break;
   }
@@ -93,7 +106,10 @@ String readSerial(const int timeout){
   return reponse;
 }
 
-short updateBusSchedule(void){
+short updateBusSchedule(BusData* busdata){
+  char schedules[MAX_CONTENT_SIZE];
+  sprintf(schedules, "{\"schedules\": ");
+  
   String cmd = "AT+CIPSTART=\"TCP\",\"";
   cmd += API_RATP;
   cmd += "\",80";
@@ -116,11 +132,44 @@ short updateBusSchedule(void){
     sendDebug("AT+CIPCLOSE");
     return 0;
   }
+
+  if (ESP8266.find("\"schedules\": "))
+  {
+    int i;
+    for (i = 13; i < MAX_CONTENT_SIZE; i++)
+    {
+      if (ESP8266.available())  //new characters received?
+      {
+        char c = ESP8266.read();
+        schedules[i] = c;
+        if(c == ']') break;
+      }
+      else i--;  //if not, keep going round loop until we've got all the characters
+    }
+    schedules[i+1] = '}';
+    schedules[i+2] = 0;
+  }
   
-  char content[MAX_CONTENT_SIZE];
-  size_t length = ESP8266.readBytes(content, MAX_CONTENT_SIZE);
-  content[MAX_CONTENT_SIZE] = 0;
-  Serial.println(content);
+  //Serial.println(schedules);
+
+  // Parse content
+  StaticJsonBuffer<270> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(schedules);
+
+  // Test if parsing succeeded
+  if (!root.success()) {
+    Serial.println("parseObject() failed");
+    return 0;
+  }
+  Serial.println("parseObject() succeeded");
+  
+  const char* destination_name = root["schedules"][0]["destination"];
+  const char* firstBus_time = root["schedules"][0]["message"];
+  const char* secondBus_time = root["schedules"][1]["message"];
+
+  busdata->destination_name = destination_name;
+  busdata->firstBus_time = firstBus_time;
+  busdata->secondBus_time = secondBus_time;
   
   // Close session
   sendDebug("AT+CIPCLOSE");
