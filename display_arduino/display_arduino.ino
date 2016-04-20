@@ -60,6 +60,8 @@ void setup() {
   
   // LCD setup
   lcd.begin(20, 4);
+  lcd.setCursor(5,1);
+  lcd.print("DEMARRAGE");
 }
 
 void loop() {
@@ -85,8 +87,8 @@ void loop() {
       // Display on LCD
       updateDisplay(&busdata, &timedata);
 
-      delay(10000);
-      state = waitForInitRequest(1000);
+      delay(5000);
+      state = waitForInitRequest(2000);
       break;
   }
 }
@@ -187,7 +189,7 @@ char updateTime(TimeData* timedata){
       buffer_array[i+1] = '}';
       buffer_array[i+2] = 0;
     }
-    Serial.println(buffer_array);
+    //Serial.println(buffer_array);
     // Parse content
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(buffer_array);
@@ -234,7 +236,7 @@ char updateBusSchedule(BusData* busdata){
       buffer_array[i+1] = '}';
       buffer_array[i+2] = 0;
     }
-    Serial.println(buffer_array);
+    //Serial.println(buffer_array);
     // Parse content
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(buffer_array);
